@@ -5,18 +5,20 @@ import { drawPoseImageWithLandmarks } from "../pose-utils/drawLandmarks";
 
 
 const TOTAL_LEVELS = 5;
-const MATCH_THRESHOLD = 0.6;
-const COUNTDOWN_LEN = 5;
+const MATCH_THRESHOLD = 0.5;
+const COUNTDOWN_LEN = 2;
+const BETWEEN_LEVEL = 3;
 
 export default function StatuesqueGame() {
   const [started, setStarted] = useState(false);
   const [level, setLevel] = useState(1);
-  const [phase, setPhase] = useState<"idle" | "show" | "webcam" | "ending" | "gameover">("idle");
+  const [phase, setPhase] = useState<"idle" | "show" | "webcam" | "ending" | "gameover" | "level-complete">("idle");
   const [poseIndex, setPoseIndex] = useState(0);
   const [countdown, setCountdown] = useState(COUNTDOWN_LEN);
 
   const [availablePoses, setAvailablePoses] = useState<StoredPoseData[]>([]);
   const [selectedPoses, setSelectedPoses] = useState<StoredPoseData[]>([]);
+  const [poseSequence, setPoseSequence] = useState<string[]>([]); 
   const [matches, setMatches] = useState<boolean[]>([]);
   const [similarityResults, setSimilarityResults] = useState<(number | null)[]>([]);
 
@@ -76,12 +78,29 @@ export default function StatuesqueGame() {
   useEffect(() => {
     if (!started || availablePoses.length === 0) return;
 
-    const shuffled = [...availablePoses].sort(() => Math.random() - 0.5);
-    const selected = shuffled.slice(0, poseCount);
-    setSelectedPoses(selected);
-    setMatches(new Array(selected.length).fill(false));
-    setSimilarityResults(new Array(selected.length).fill(null));
-  }, [started, availablePoses, poseCount]);
+    // Generate initial sequence if needed
+    if (poseSequence.length === 0) {
+      const maxSequenceLength = TOTAL_LEVELS + 1; // We need up to level+1 poses
+      const newSequence: string[] = [];
+      
+      for (let i = 0; i < maxSequenceLength; i++) {
+        const randomPoseId = availablePoses[Math.floor(Math.random() * availablePoses.length)].id;
+        newSequence.push(randomPoseId);
+      }
+      
+      setPoseSequence(newSequence);
+    } else {
+      // Select poses based on current level's sequence
+      const poseIds = poseSequence.slice(0, poseCount);
+      const posesForLevel = poseIds.map(id => 
+        availablePoses.find(p => p.id === id)!
+      ).filter(Boolean);
+
+      setSelectedPoses(posesForLevel);
+      setMatches(new Array(posesForLevel.length).fill(false));
+      setSimilarityResults(new Array(posesForLevel.length).fill(null));
+    }
+  }, [started, availablePoses, level, poseSequence, poseCount]);
 
   // ===== 3. DRAW LANDMARKS ON SHOWN POSE =====
   useEffect(() => {
@@ -185,18 +204,17 @@ export default function StatuesqueGame() {
             comparisonResultRef.current = null;
             return prev + 1;
           } else {
-            // Level complete - check results
             const allResults = [...similarityResults];
             allResults[poseIndex] = similarity;
             
-            // Check if any pose failed the threshold
-            const anyFailed = allResults.some((s) => (s ?? 0) < MATCH_THRESHOLD);
+            // const anyFailed = allResults.some((s) => (s ?? 0) < MATCH_THRESHOLD);
+            const anyFailed = false;
             
             if (anyFailed) {
               setPhase("gameover");
             } else if (level < TOTAL_LEVELS) {
+              setPhase("level-complete");
               setLevel((l) => l + 1);
-              setPhase("show");
             } else {
               setPhase("ending");
             }
@@ -209,90 +227,32 @@ export default function StatuesqueGame() {
     return cleanup;
   }, [started, phase, poseIndex, level, currentPose, poseCount]);
 
+  // ===== 5c. LEVEL COMPLETE SPLASH SCREEN =====
+  useEffect(() => {
+    if (phase !== "level-complete") return;
+
+    let remaining = BETWEEN_LEVEL;
+    setCountdown(remaining);
+
+    const interval = setInterval(() => {
+      remaining--;
+      setCountdown(remaining);
+
+      if (remaining <= 0) {
+        clearInterval(interval);
+        setPoseIndex(0);
+        setPhase("show");
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [phase]);
+
   // ===== ----- ACCURACY -----
   const accuracy =
     totalPoses > 0 ? Math.round((matches.filter(m => m).length / totalPoses) * 100) : 0;
 
-  // ===== ----- RENDER: ENDING =====
-  if (phase === "ending") {
-    return (
-      <div className="statuesque-root">
-        <div className="statuesque-info">
-          <h2>You Finished All 5 Levels!</h2>
-          <p>Accuracy: {accuracy}%</p>
-          <p>
-            Matched {matches.filter(m => m).length} poses out of {totalPoses}.
-          </p>
-          
-          <div style={{ marginTop: "20px", fontSize: "14px", textAlign: "left" }}>
-            <h3>Level Results:</h3>
-            {selectedPoses.map((pose, idx) => (
-              <div key={idx} style={{ marginBottom: "8px", padding: "8px", backgroundColor: "#f5f5f5", borderRadius: "4px" }}>
-                <div>Pose {idx + 1}: {pose.filename}</div>
-                <div>Similarity: {((similarityResults[idx] ?? 0) * 100).toFixed(1)}%</div>
-                <div style={{ color: (similarityResults[idx] ?? 0) >= MATCH_THRESHOLD ? "#28a745" : "#dc3545" }}>
-                  {(similarityResults[idx] ?? 0) >= MATCH_THRESHOLD ? "✓ Match" : "✗ Failed"}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
 
-        <button
-          onClick={() => {
-            setStarted(false);
-            setPhase("idle");
-            setLevel(1);
-            setPoseIndex(0);
-            setMatches([]);
-            setSelectedPoses([]);
-            setSimilarityResults([]);
-          }}
-        >
-          Restart
-        </button>
-      </div>
-    );
-  }
-
-  // ===== ----- RENDER: GAMEOVER =====
-  if (phase === "gameover") {
-    return (
-      <div className="statuesque-root">
-        <div className="statuesque-info">
-          <h2>Game Over!</h2>
-          <p>You failed to match all poses in Level {level}.</p>
-          
-          <div style={{ marginTop: "20px", fontSize: "14px", textAlign: "left" }}>
-            <h3>Level {level} Results:</h3>
-            {selectedPoses.map((pose, idx) => (
-              <div key={idx} style={{ marginBottom: "8px", padding: "8px", backgroundColor: "#f5f5f5", borderRadius: "4px" }}>
-                <div>Pose {idx + 1}: {pose.filename}</div>
-                <div>Similarity: {((similarityResults[idx] ?? 0) * 100).toFixed(1)}%</div>
-                <div style={{ color: (similarityResults[idx] ?? 0) >= MATCH_THRESHOLD ? "#28a745" : "#dc3545" }}>
-                  {(similarityResults[idx] ?? 0) >= MATCH_THRESHOLD ? "✓ Match" : "✗ Failed"}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <button
-          onClick={() => {
-            setStarted(false);
-            setPhase("idle");
-            setLevel(1);
-            setPoseIndex(0);
-            setMatches([]);
-            setSelectedPoses([]);
-            setSimilarityResults([]);
-          }}
-        >
-          Try Again
-        </button>
-      </div>
-    );
-  }
 
   // ===== ----- RENDER: MAIN =====
   return (
@@ -312,13 +272,7 @@ export default function StatuesqueGame() {
             <div className="pose-display">
               <canvas
                 ref={poseCanvasRef}
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  borderRadius: "8px",
-                  display: "block",
-                  objectFit: "contain",
-                }}
+                className="pose-display-canvas"
               />
               <div className="pose-info">
                 <div className="level-indicator">Level {level}</div>
@@ -342,11 +296,6 @@ export default function StatuesqueGame() {
               <div className="countdown-display">
                 Time left: <span className="countdown-number">{countdown}s</span>
               </div>
-              {currentPose && (
-                <div className="current-pose-name">
-                  Matching: {currentPose.filename}
-                </div>
-              )}
             </div>
           )}
 
@@ -360,6 +309,7 @@ export default function StatuesqueGame() {
                   setStarted(true);
                   setLevel(1);
                   setPoseIndex(0);
+                  setPoseSequence([]); // Reset sequence for new game
                   setMatches(new Array(poseCount).fill(false));
                   setPhase("show");
                 }}
@@ -372,6 +322,100 @@ export default function StatuesqueGame() {
           )}
         </div>
       </div>
+
+      {/* LEVEL COMPLETE MODAL OVERLAY */}
+      {phase === "level-complete" && (
+        <div className="statuesque-overlay">
+          <div className="statuesque-modal">
+            <h2>Level {level - 1} Complete!</h2>
+            <p>Get ready for Level {level}...</p>
+            <div className="countdown-display">
+              Starting in <span className="countdown-number">{countdown}s</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ENDING MODAL OVERLAY */}
+      {phase === "ending" && (
+        <div className="statuesque-overlay">
+          <div className="statuesque-modal">
+            <h2>You Finished All 5 Levels!</h2>
+            <p>Accuracy: {accuracy}%</p>
+            <p>
+              Matched {matches.filter(m => m).length} poses out of {totalPoses}.
+            </p>
+            
+            <div className="game-results-container">
+              <h3>Level Results:</h3>
+              {selectedPoses.map((pose, idx) => (
+                <div key={idx} className="result-item">
+                  <div>Pose {idx + 1}: {pose.filename}</div>
+                  <div>Similarity: {((similarityResults[idx] ?? 0) * 100).toFixed(1)}%</div>
+                  <div className={(similarityResults[idx] ?? 0) >= MATCH_THRESHOLD ? "result-passed" : "result-failed"}>
+                    {(similarityResults[idx] ?? 0) >= MATCH_THRESHOLD ? "✓ Match" : "✗ Failed"}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <button
+              onClick={() => {
+                setStarted(false);
+                setPhase("idle");
+                setLevel(1);
+                setPoseIndex(0);
+                setPoseSequence([]);
+                setMatches([]);
+                setSelectedPoses([]);
+                setSimilarityResults([]);
+              }}
+              className="restart-button"
+            >
+              Restart
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* GAMEOVER MODAL OVERLAY */}
+      {phase === "gameover" && (
+        <div className="statuesque-overlay">
+          <div className="statuesque-modal">
+            <h2>Game Over!</h2>
+            <p>You failed to match all poses in Level {level}.</p>
+            
+            <div className="game-results-container">
+              <h3>Level {level} Results:</h3>
+              {selectedPoses.map((pose, idx) => (
+                <div key={idx} className="result-item">
+                  <div>Pose {idx + 1}: {pose.filename}</div>
+                  <div>Similarity: {((similarityResults[idx] ?? 0) * 100).toFixed(1)}%</div>
+                  <div className={(similarityResults[idx] ?? 0) >= MATCH_THRESHOLD ? "result-passed" : "result-failed"}>
+                    {(similarityResults[idx] ?? 0) >= MATCH_THRESHOLD ? "✓ Match" : "✗ Failed"}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <button
+              onClick={() => {
+                setStarted(false);
+                setPhase("idle");
+                setLevel(1);
+                setPoseIndex(0);
+                setPoseSequence([]);
+                setMatches([]);
+                setSelectedPoses([]);
+                setSimilarityResults([]);
+              }}
+              className="try-again-button"
+            >
+              Try Again
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

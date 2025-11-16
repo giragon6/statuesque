@@ -1,43 +1,12 @@
-@import url('https://fonts.googleapis.com/css2?family=Crimson+Text:ital@0;1&family=Cinzel:wght@400;600;700;900&display=swap');
-
-:root {
-  --papyrus-light: #f5e6d3;
-  --papyrus-medium: #e8d4b8;
-  --papyrus-dark: #d4b896;
-  --papyrus-darker: #c49876;
-  --bronze-light: #c9a961;
-  --bronze-medium: #a0826d;
-  --bronze-dark: #6b5d52;
-  --stone-light: #8b8680;
-  --stone-medium: #5c5955;
-  --stone-dark: #3a3835;
-  --gold: #d4af37;
-  --gold-dark: #9a7f2a;
-  --red-ochre: #a0522d;
-  --text-dark: #2c2416;
-}
-
-* {
-  box-sizing: border-box;
-}
-
-html, body {
-  margin: 0;
-  padding: 0;
-  background: radial-gradient(ellipse at center, #3a3835 0%, #2c2416 100%);
-  font-family: 'Crimson Text', serif;
-  color: var(--text-dark);
-  min-height: 100vh;
-}
-
 .game-page {
   font-family: 'Crimson Text', serif;
   color: var(--text-dark);
   min-height: 100vh;
+  min-width: 100vw;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 40px 20px;
+  /* padding: 40px 20px; */
   margin: 0;
   background: radial-gradient(ellipse at center, #4a4238 0%, #2c2416 100%);
 }
@@ -54,6 +23,7 @@ html, body {
 
 .game-main {
   width: 100%;
+  height:100%;
   max-width: 1100px;
   display: flex;
   gap: 28px;
@@ -542,6 +512,7 @@ html, body {
   border-radius: 0;
   display: block;
   filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.2));
+  transform: rotateY(180deg);
 }
 
 .pose-info {
@@ -569,12 +540,12 @@ html, body {
 }
 
 .pose-counter {
-  font-size: 18px;
+  font-size: 50px;
   color: var(--papyrus-light);
   font-weight: 600;
   margin-bottom: 4px;
   font-family: 'Cinzel', serif;
-  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.7);
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
 }
 
 .countdown-display {
@@ -919,4 +890,193 @@ html, body {
   text-align: center;
   width: 100%;
   color: var(--papyrus-light);
+}
+
+.game-results-container {
+  margin-top: 20px;
+  font-size: 14px;
+  text-align: left;
+  width: 100%;
+}
+
+.game-results-container h3 {
+  font-family: 'Cinzel', serif;
+  color: var(--gold);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 12px;
+}
+
+.result-item {
+  margin-bottom: 12px;
+  padding: 12px;
+  background: linear-gradient(135deg, var(--papyrus-light) 0%, var(--papyrus-medium) 100%);
+  border-left: 4px solid var(--bronze-medium);
+  border-radius: 0;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+.result-item > div:first-child {
+  font-weight: 600;
+  color: var(--text-dark);
+  margin-bottom: 4px;
+}
+
+.result-item > div:nth-child(2) {
+  font-size: 13px;
+  color: var(--bronze-medium);
+  margin-bottom: 4px;
+}
+
+.result-item > div:nth-child(3) {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.result-passed {
+  color: #2d5016;
+}
+
+.result-failed {
+  color: var(--red-ochre);
+}
+
+/* Canvas positioning for pose display */
+.pose-display-canvas {
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
+  display: block;
+  object-fit: contain;
+}
+
+/* Button styles for ending/gameover screens */
+.restart-button,
+.try-again-button {
+  padding: 14px 40px;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-dark);
+  background: linear-gradient(135deg, var(--gold) 0%, var(--gold-dark) 100%);
+  border: 0;
+  border-radius: 0;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  font-family: 'Cinzel', serif;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
+  position: relative;
+  overflow: hidden;
+}
+
+.restart-button::before,
+.try-again-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  transition: left 0.5s ease;
+}
+
+.restart-button:hover,
+.try-again-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px rgba(212, 175, 55, 0.4);
+}
+
+.restart-button:hover::before,
+.try-again-button:hover::before {
+  left: 100%;
+}
+
+.statuesque-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.85);
+  z-index: 9999;
+  backdrop-filter: blur(2px);
+}
+
+.statuesque-modal {
+  background: linear-gradient(135deg, var(--papyrus-medium) 0%, var(--papyrus-light) 100%);
+  border: 4px solid var(--bronze-dark);
+  border-radius: 0;
+  padding: 40px;
+  max-width: 500px;
+  width: 90vw;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 
+    inset 0 0 30px rgba(0, 0, 0, 0.1),
+    0 20px 60px rgba(0, 0, 0, 0.8),
+    0 0 0 3px var(--gold);
+  position: relative;
+  text-align: center;
+  color: var(--text-dark);
+}
+
+.statuesque-modal::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: 
+    repeating-linear-gradient(
+      90deg,
+      transparent,
+      transparent 2px,
+      rgba(0, 0, 0, 0.02) 2px,
+      rgba(0, 0, 0, 0.02) 4px
+    ),
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0, 0, 0, 0.02) 2px,
+      rgba(0, 0, 0, 0.02) 4px
+    );
+  pointer-events: none;
+}
+
+.statuesque-modal h2 {
+  font-family: 'Cinzel', serif;
+  font-size: 32px;
+  font-weight: 900;
+  color: var(--gold);
+  margin: 0 0 16px 0;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
+  position: relative;
+  z-index: 1;
+}
+
+.statuesque-modal p {
+  font-family: 'Crimson Text', serif;
+  font-size: 16px;
+  color: var(--text-dark);
+  margin: 0 0 16px 0;
+  line-height: 1.6;
+  position: relative;
+  z-index: 1;
+}
+
+.statuesque-modal .game-results-container {
+  position: relative;
+  z-index: 1;
+}
+
+.statuesque-modal button {
+  margin-top: 24px;
+  position: relative;
+  z-index: 1;
 }

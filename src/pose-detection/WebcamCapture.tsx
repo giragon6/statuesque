@@ -23,6 +23,7 @@ import {
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import type { Landmark } from "../pose-utils/comparePoses";
 import { extractLandmarksFromResult } from "../pose-utils/comparePoses";
+import "./webcam-capture.css";
 
 /**
  * Handle returned by useImperativeHandle for WebcamCapture.
@@ -257,46 +258,18 @@ export const WebcamCapture = forwardRef<WebcamCaptureHandle, WebcamCaptureProps>
       getCurrentFrame: () => videoRef.current
     }));
 
-    const containerStyles: React.CSSProperties = {
-      position: "relative",
-      width,
-      height,
-      overflow: "hidden"
-    };
-
-    const videoStyles: React.CSSProperties = {
-      position: "absolute",
-      top: 0,
-      left: 0,
-      width: "100%",
-      height: "100%",
-      zIndex: 1,
-      transform: "rotateY(180deg)"
-    };
-
-    const canvasStyles: React.CSSProperties = {
-      position: "absolute",
-      top: 0,
-      left: 0,
-      width: "100%",
-      height: "100%",
-      zIndex: 2,
-      transform: "rotateY(180deg)"
-    };
-
     return (
-      <div style={containerStyles} className={className}>
+      <div className={`webcam-capture-container ${className}`.trim()} style={{ width, height }}>
         <video
           ref={videoRef}
-          style={videoStyles}
+          className="webcam-capture-video"
           autoPlay
           playsInline
           muted
-          
         />
         <canvas
           ref={canvasRef}
-          style={canvasStyles}
+          className="webcam-capture-canvas"
           width={1280}
           height={720}
         />

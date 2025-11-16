@@ -50,12 +50,6 @@ export default function GamePage() {
             <div className="central-box">
               <StatuesqueGame />
             </div>
-
-            <div className="instructions">
-              Use the central box: it will play poses, then switch to camera to
-              record your attempt.
-            </div>
-
             <Leaderboard />
           </div>
         </section>
