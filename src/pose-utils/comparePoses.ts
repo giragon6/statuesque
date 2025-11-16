@@ -92,10 +92,10 @@ export interface ComparisonResult {
   validLandmarks: number;
   /** Mean distance between matched landmarks */
   meanDistance: number;
-  /** Which body regions were compared (for debugging partial poses) */
-  comparedRegions: BodyRegion[];
-  /** Breakdown of distances per region */
-  regionDistances?: Record<BodyRegion, number>;
+  // /** Which body regions were compared (for debugging partial poses) */
+  // comparedRegions: BodyRegion[];
+  // /** Breakdown of distances per region */
+  // regionDistances?: Record<BodyRegion, number>;
 }
 
 /**
@@ -210,42 +210,42 @@ export function computeAngle(a: Landmark, b: Landmark, c: Landmark): number {
   return Math.acos(clampedCosAngle) * (180 / Math.PI);
 }
 
-/**
- * Detect which body regions are visible in the landmark set.
- */
-function detectVisibleRegions(landmarks: Landmark[], config: Required<ComparisonConfig>): BodyRegion[] {
-  const regions: BodyRegion[] = [];
-  const isVisible = (idx: number) =>
-    idx < landmarks.length && (landmarks[idx].visibility ?? 1) >= config.visibilityThreshold;
+// /**
+//  * Detect which body regions are visible in the landmark set.
+//  */
+// function detectVisibleRegions(landmarks: Landmark[], config: Required<ComparisonConfig>): BodyRegion[] {
+//   const regions: BodyRegion[] = [];
+//   const isVisible = (idx: number) =>
+//     idx < landmarks.length && (landmarks[idx].visibility ?? 1) >= config.visibilityThreshold;
 
-  // Upper body: shoulders and above
-  if (isVisible(PoseLandmarkIndex.LEFT_SHOULDER) || isVisible(PoseLandmarkIndex.RIGHT_SHOULDER)) {
-    regions.push("upper");
-  }
+//   // Upper body: shoulders and above
+//   if (isVisible(PoseLandmarkIndex.LEFT_SHOULDER) || isVisible(PoseLandmarkIndex.RIGHT_SHOULDER)) {
+//     regions.push("upper");
+//   }
 
-  // Lower body: hips and below
-  if (isVisible(PoseLandmarkIndex.LEFT_HIP) || isVisible(PoseLandmarkIndex.RIGHT_HIP)) {
-    regions.push("lower");
-  }
+//   // Lower body: hips and below
+//   if (isVisible(PoseLandmarkIndex.LEFT_HIP) || isVisible(PoseLandmarkIndex.RIGHT_HIP)) {
+//     regions.push("lower");
+//   }
 
-  // Left arm
-  if (
-    isVisible(PoseLandmarkIndex.LEFT_SHOULDER) &&
-    (isVisible(PoseLandmarkIndex.LEFT_ELBOW) || isVisible(PoseLandmarkIndex.LEFT_WRIST))
-  ) {
-    regions.push("left_arm");
-  }
+//   // Left arm
+//   if (
+//     isVisible(PoseLandmarkIndex.LEFT_SHOULDER) &&
+//     (isVisible(PoseLandmarkIndex.LEFT_ELBOW) || isVisible(PoseLandmarkIndex.LEFT_WRIST))
+//   ) {
+//     regions.push("left_arm");
+//   }
 
-  // Right arm
-  if (
-    isVisible(PoseLandmarkIndex.RIGHT_SHOULDER) &&
-    (isVisible(PoseLandmarkIndex.RIGHT_ELBOW) || isVisible(PoseLandmarkIndex.RIGHT_WRIST))
-  ) {
-    regions.push("right_arm");
-  }
+//   // Right arm
+//   if (
+//     isVisible(PoseLandmarkIndex.RIGHT_SHOULDER) &&
+//     (isVisible(PoseLandmarkIndex.RIGHT_ELBOW) || isVisible(PoseLandmarkIndex.RIGHT_WRIST))
+//   ) {
+//     regions.push("right_arm");
+//   }
 
-  return regions;
-}
+//   return regions;
+// }
 
 /**
  * Filter landmarks to only those that are sufficiently visible.
@@ -453,7 +453,7 @@ function compareAnglesOnly(
         landmarksCompared: 0,
         validLandmarks: 0,
         meanDistance: 1,
-        comparedRegions: []
+        // comparedRegions: []
       };
     }
 
@@ -461,9 +461,9 @@ function compareAnglesOnly(
       angleFeatures.angles.reduce((a, b) => a + b, 0) / angleFeatures.angles.length;
     const similarity = 1 - meanAngleDiff;
 
-    const targetRegions = detectVisibleRegions(targetPose.landmarks, config);
-    const currentRegions = detectVisibleRegions(currentPose.landmarks, config);
-    const comparedRegions = targetRegions.filter(r => currentRegions.includes(r)) as BodyRegion[];
+    // const targetRegions = detectVisibleRegions(targetPose.landmarks, config);
+    // const currentRegions = detectVisibleRegions(currentPose.landmarks, config);
+    // const comparedRegions = targetRegions.filter(r => currentRegions.includes(r)) as BodyRegion[];
 
     return {
       isMatching: similarity >= config.similarityThreshold,
@@ -471,7 +471,7 @@ function compareAnglesOnly(
       landmarksCompared: angleFeatures.validCount,
       validLandmarks: angleFeatures.validCount,
       meanDistance: meanAngleDiff,
-      comparedRegions
+      // comparedRegions
     };
   } catch (error) {
     console.error("Error comparing angles:", error);
@@ -481,7 +481,7 @@ function compareAnglesOnly(
       landmarksCompared: 0,
       validLandmarks: 0,
       meanDistance: 1,
-      comparedRegions: []
+      // comparedRegions: []
     };
   }
 }
@@ -536,7 +536,7 @@ export function comparePoses(
         landmarksCompared: 0,
         validLandmarks: 0,
         meanDistance: 1,
-        comparedRegions: []
+        // comparedRegions: []
       };
     }
 
@@ -558,61 +558,61 @@ export function comparePoses(
       }
     }
 
-    // Detect compared regions for debugging
-    const targetRegions = detectVisibleRegions(targetPose.landmarks, finalConfig);
-    const currentRegions = detectVisibleRegions(currentPose.landmarks, finalConfig);
-    const comparedRegions = targetRegions.filter(r => currentRegions.includes(r)) as BodyRegion[];
+    // // Detect compared regions for debugging
+    // const targetRegions = detectVisibleRegions(targetPose.landmarks, finalConfig);
+    // const currentRegions = detectVisibleRegions(currentPose.landmarks, finalConfig);
+    // const comparedRegions = targetRegions.filter(r => currentRegions.includes(r)) as BodyRegion[];
 
-    // Compute region distances for debugging
-    // @ts-ignore
-    const regionDistances: Record<BodyRegion, number> = {};
+    // // Compute region distances for debugging
+    // // @ts-ignore
+    // const regionDistances: Record<BodyRegion, number> = {};
 
-    const regionIndices: Record<BodyRegion, number[]> = {
-      upper: [
-        PoseLandmarkIndex.LEFT_SHOULDER,
-        PoseLandmarkIndex.RIGHT_SHOULDER,
-        PoseLandmarkIndex.LEFT_ELBOW,
-        PoseLandmarkIndex.RIGHT_ELBOW
-      ],
-      lower: [
-        PoseLandmarkIndex.LEFT_HIP,
-        PoseLandmarkIndex.RIGHT_HIP,
-        PoseLandmarkIndex.LEFT_KNEE,
-        PoseLandmarkIndex.RIGHT_KNEE,
-        PoseLandmarkIndex.LEFT_ANKLE,
-        PoseLandmarkIndex.RIGHT_ANKLE
-      ],
-      left_arm: [
-        PoseLandmarkIndex.LEFT_SHOULDER,
-        PoseLandmarkIndex.LEFT_ELBOW,
-        PoseLandmarkIndex.LEFT_WRIST
-      ],
-      right_arm: [
-        PoseLandmarkIndex.RIGHT_SHOULDER,
-        PoseLandmarkIndex.RIGHT_ELBOW,
-        PoseLandmarkIndex.RIGHT_WRIST
-      ]
-    };
+    // const regionIndices: Record<BodyRegion, number[]> = {
+    //   upper: [
+    //     PoseLandmarkIndex.LEFT_SHOULDER,
+    //     PoseLandmarkIndex.RIGHT_SHOULDER,
+    //     PoseLandmarkIndex.LEFT_ELBOW,
+    //     PoseLandmarkIndex.RIGHT_ELBOW
+    //   ],
+    //   lower: [
+    //     PoseLandmarkIndex.LEFT_HIP,
+    //     PoseLandmarkIndex.RIGHT_HIP,
+    //     PoseLandmarkIndex.LEFT_KNEE,
+    //     PoseLandmarkIndex.RIGHT_KNEE,
+    //     PoseLandmarkIndex.LEFT_ANKLE,
+    //     PoseLandmarkIndex.RIGHT_ANKLE
+    //   ],
+    //   left_arm: [
+    //     PoseLandmarkIndex.LEFT_SHOULDER,
+    //     PoseLandmarkIndex.LEFT_ELBOW,
+    //     PoseLandmarkIndex.LEFT_WRIST
+    //   ],
+    //   right_arm: [
+    //     PoseLandmarkIndex.RIGHT_SHOULDER,
+    //     PoseLandmarkIndex.RIGHT_ELBOW,
+    //     PoseLandmarkIndex.RIGHT_WRIST
+    //   ]
+    // };
 
-    for (const region of comparedRegions) {
-      const indices = regionIndices[region];
-      const regionDistances_vals: number[] = [];
+    // for (const region of comparedRegions) {
+    //   const indices = regionIndices[region];
+    //   const regionDistances_vals: number[] = [];
 
-      for (const idx of indices) {
-        if (
-          targetPose.visibleLandmarkIndices.includes(idx) &&
-          currentPose.visibleLandmarkIndices.includes(idx)
-        ) {
-          const d = distance(targetPose.landmarks[idx], currentPose.landmarks[idx]);
-          regionDistances_vals.push(d);
-        }
-      }
+    //   for (const idx of indices) {
+    //     if (
+    //       targetPose.visibleLandmarkIndices.includes(idx) &&
+    //       currentPose.visibleLandmarkIndices.includes(idx)
+    //     ) {
+    //       const d = distance(targetPose.landmarks[idx], currentPose.landmarks[idx]);
+    //       regionDistances_vals.push(d);
+    //     }
+    //   }
 
-      if (regionDistances_vals.length > 0) {
-        regionDistances[region] =
-          regionDistances_vals.reduce((a, b) => a + b, 0) / regionDistances_vals.length;
-      }
-    }
+    //   if (regionDistances_vals.length > 0) {
+    //     regionDistances[region] =
+    //       regionDistances_vals.reduce((a, b) => a + b, 0) / regionDistances_vals.length;
+    //   }
+    // }
 
     return {
       isMatching: similarity >= finalConfig.similarityThreshold,
@@ -620,8 +620,8 @@ export function comparePoses(
       landmarksCompared: targetPose.visibleLandmarkIndices.length,
       validLandmarks: distFeatures.validCount,
       meanDistance,
-      comparedRegions,
-      regionDistances
+      // comparedRegions,
+      // regionDistances
     };
   } catch (error) {
     console.error("Error comparing poses:", error);
@@ -631,7 +631,7 @@ export function comparePoses(
       landmarksCompared: 0,
       validLandmarks: 0,
       meanDistance: 1,
-      comparedRegions: []
+      // comparedRegions: []
     };
   }
 }
