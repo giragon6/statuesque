@@ -5,9 +5,9 @@ import { drawPoseImageWithLandmarks } from "../pose-utils/drawLandmarks";
 import { supabase } from "../lib/supabaseClient";
 
 
-const MATCH_THRESHOLD = 0.5;
-const COUNTDOWN_LEN = 2;
-const BETWEEN_LEVEL = 1;
+const MATCH_THRESHOLD = 0.45;
+const COUNTDOWN_LEN = 4;
+const BETWEEN_LEVEL = 3;
 
 export default function StatuesqueGame() {
   const [started, setStarted] = useState(false);
@@ -32,7 +32,7 @@ export default function StatuesqueGame() {
   const comparisonResultRef = useRef<ComparisonResult | null>(null);
   const poseCanvasRef = useRef<HTMLCanvasElement>(null);
 
-  const poseCount = level + 1;
+  const poseCount = level;
   const currentPose = selectedPoses[poseIndex] || null;
 
   useEffect(() => {
