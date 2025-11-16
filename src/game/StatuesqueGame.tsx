@@ -354,22 +354,6 @@ export default function StatuesqueGame() {
           {!started && phase === "idle" && (
             <div className="idle-message">
               <h2>Statuesque</h2>
-              <input
-                type="text"
-                placeholder="Enter your name"
-                value={playerName}
-                onChange={(e) => setPlayerName(e.target.value)}
-                onKeyPress={(e) => {
-                  if (e.key === "Enter" && playerName.trim() && !isExtracting && isWebcamReady) {
-                    setStarted(true);
-                    setLevel(1);
-                    setPoseIndex(0);
-                    setPoseSequence([]);
-                    setPhase("show");
-                  }
-                }}
-                className="player-name-input"
-              />
               <button
                 onClick={() => {
                   setStarted(true);
@@ -378,7 +362,7 @@ export default function StatuesqueGame() {
                   setPoseSequence([]);
                   setPhase("show");
                 }}
-                disabled={isExtracting || !isWebcamReady || !playerName.trim()}
+                disabled={isExtracting || !isWebcamReady}
                 className="start-button"
               >
                 {isExtracting ? "LOADING POSES..." : !isWebcamReady ? "LOADING CAMERA..." : "START"}
