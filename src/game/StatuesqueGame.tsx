@@ -6,8 +6,8 @@ import { supabase } from "../lib/supabaseClient";
 
 
 const MATCH_THRESHOLD = 0.5;
-const COUNTDOWN_LEN = 4;
-const BETWEEN_LEVEL = 3;
+const COUNTDOWN_LEN = 2;
+const BETWEEN_LEVEL = 1;
 
 export default function StatuesqueGame() {
   const [started, setStarted] = useState(false);
@@ -469,6 +469,7 @@ export default function StatuesqueGame() {
         <div className="statuesque-overlay">
           <div className="statuesque-modal">
             <h2>Game Over!</h2>
+            <img src="/orpheus_gj.png" width="100%"></img>
             <p>You failed to match all poses in Level {level}.</p>
             <p>Highest Similarity: {accuracy}%</p>
             

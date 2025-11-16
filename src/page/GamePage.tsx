@@ -6,7 +6,7 @@ import { Leaderboard } from "../game/Leaderboard"; // ⬅ add this
 
 export default function GamePage() {
   const [showIntro, setShowIntro] = useState(true);
-  const SLIDES = ['/1.png','/2.png','/3.png'];
+  const SLIDES = ['/1.png','/2.png','/orpheus_ygt.png'];
   const [slideIndex, setSlideIndex] = useState(0);
 
   return (
