@@ -2,11 +2,11 @@ import { useEffect, useRef, useState } from "react";
 import { WebcamCapture, type WebcamCaptureHandle } from "../pose-detection/WebcamCapture";
 import { extractAllPosesFromAssets, getAllCachedPoses, comparePoses, type StoredPoseData, type ComparisonResult } from "../pose-utils";
 import { drawPoseImageWithLandmarks } from "../pose-utils/drawLandmarks";
+import { supabase } from "../lib/supabaseClient";
 
 
-const TOTAL_LEVELS = 5;
 const MATCH_THRESHOLD = 0.5;
-const COUNTDOWN_LEN = 2;
+const COUNTDOWN_LEN = 4;
 const BETWEEN_LEVEL = 3;
 
 export default function StatuesqueGame() {
@@ -19,11 +19,13 @@ export default function StatuesqueGame() {
   const [availablePoses, setAvailablePoses] = useState<StoredPoseData[]>([]);
   const [selectedPoses, setSelectedPoses] = useState<StoredPoseData[]>([]);
   const [poseSequence, setPoseSequence] = useState<string[]>([]); 
-  const [matches, setMatches] = useState<boolean[]>([]);
   const [similarityResults, setSimilarityResults] = useState<(number | null)[]>([]);
 
   const [isExtracting, setIsExtracting] = useState(true);
   const [isWebcamReady, setIsWebcamReady] = useState(false);
+  const [playerName, setPlayerName] = useState("");
+  const [isSubmittingScore, setIsSubmittingScore] = useState(false);
+  const [isPulsing, setIsPulsing] = useState(false);
 
   const webcamRef = useRef<WebcamCaptureHandle>(null);
   const comparisonIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -32,7 +34,6 @@ export default function StatuesqueGame() {
 
   const poseCount = level + 1;
   const currentPose = selectedPoses[poseIndex] || null;
-  const totalPoses = 2 + 3 + 4 + 5 + 6;
 
   useEffect(() => {
     const initPoses = async () => {
@@ -80,16 +81,27 @@ export default function StatuesqueGame() {
 
     // Generate initial sequence if needed
     if (poseSequence.length === 0) {
-      const maxSequenceLength = TOTAL_LEVELS + 1; // We need up to level+1 poses
+      // Start with a large sequence - generate on-demand as needed
+      const initialSequenceLength = Math.max(level + 10, 16);
       const newSequence: string[] = [];
       
-      for (let i = 0; i < maxSequenceLength; i++) {
+      for (let i = 0; i < initialSequenceLength; i++) {
         const randomPoseId = availablePoses[Math.floor(Math.random() * availablePoses.length)].id;
         newSequence.push(randomPoseId);
       }
       
       setPoseSequence(newSequence);
     } else {
+      // Extend sequence if needed for higher levels
+      if (poseSequence.length < poseCount) {
+        const newSequence = [...poseSequence];
+        while (newSequence.length < poseCount + 10) {
+          const randomPoseId = availablePoses[Math.floor(Math.random() * availablePoses.length)].id;
+          newSequence.push(randomPoseId);
+        }
+        setPoseSequence(newSequence);
+      }
+
       // Select poses based on current level's sequence
       const poseIds = poseSequence.slice(0, poseCount);
       const posesForLevel = poseIds.map(id => 
@@ -97,7 +109,6 @@ export default function StatuesqueGame() {
       ).filter(Boolean);
 
       setSelectedPoses(posesForLevel);
-      setMatches(new Array(posesForLevel.length).fill(false));
       setSimilarityResults(new Array(posesForLevel.length).fill(null));
     }
   }, [started, availablePoses, level, poseSequence, poseCount]);
@@ -190,15 +201,6 @@ export default function StatuesqueGame() {
           return updated;
         });
 
-        // Check if this pose was a match
-        if (similarity >= MATCH_THRESHOLD) {
-          setMatches((prev) => {
-            const updated = [...prev];
-            updated[poseIndex] = true;
-            return updated;
-          });
-        }
-
         setPoseIndex((prev) => {
           if (prev < poseCount - 1) {
             comparisonResultRef.current = null;
@@ -207,16 +209,14 @@ export default function StatuesqueGame() {
             const allResults = [...similarityResults];
             allResults[poseIndex] = similarity;
             
-            // const anyFailed = allResults.some((s) => (s ?? 0) < MATCH_THRESHOLD);
-            const anyFailed = false;
+            const anyFailed = allResults.some((s) => (s ?? 0) < MATCH_THRESHOLD);
             
             if (anyFailed) {
               setPhase("gameover");
-            } else if (level < TOTAL_LEVELS) {
+            } else {
+              // Continue to next level indefinitely
               setPhase("level-complete");
               setLevel((l) => l + 1);
-            } else {
-              setPhase("ending");
             }
             return prev;
           }
@@ -248,9 +248,60 @@ export default function StatuesqueGame() {
     return () => clearInterval(interval);
   }, [phase]);
 
-  // ===== ----- ACCURACY -----
-  const accuracy =
-    totalPoses > 0 ? Math.round((matches.filter(m => m).length / totalPoses) * 100) : 0;
+  // ===== 5d. POSE INDEX CHANGE PULSE EFFECT =====
+  useEffect(() => {
+    if (phase === "webcam") {
+      setIsPulsing(true);
+      const timer = setTimeout(() => setIsPulsing(false), 600);
+      return () => clearTimeout(timer);
+    }
+  }, [poseIndex, phase]);
+
+  // ===== ----- ACCURACY (HIGHEST SIMILARITY) -----
+  const accuracy = similarityResults.length > 0
+    ? Math.round(Math.max(...similarityResults.map(s => s ?? 0)) * 100)
+    : 0;
+
+  // ===== ----- SUBMIT SCORE TO SUPABASE -----
+  const submitScore = async () => {
+    if (!playerName.trim()) {
+      alert("Please enter your name");
+      return;
+    }
+
+    setIsSubmittingScore(true);
+    try {
+      const { error } = await supabase.from("scores").insert([
+        {
+          name: playerName.trim(),
+          accuracy: accuracy,
+          highest_level: level,
+          created_at: new Date().toISOString(),
+        },
+      ]);
+
+      if (error) {
+        console.error("Error submitting score:", error.message);
+        alert("Failed to submit score. Please try again.");
+      } else {
+        alert("Score submitted! Thanks for playing!");
+        // Reset the game
+        setStarted(false);
+        setPhase("idle");
+        setLevel(1);
+        setPoseIndex(0);
+        setPoseSequence([]);
+        setSelectedPoses([]);
+        setSimilarityResults([]);
+        setPlayerName("");
+      }
+    } catch (error) {
+      console.error("Error submitting score:", error);
+      alert("An error occurred while submitting your score.");
+    } finally {
+      setIsSubmittingScore(false);
+    }
+  };
 
 
 
@@ -288,7 +339,7 @@ export default function StatuesqueGame() {
 
           {/* WEBCAM PHASE: Show current pose index */}
           {started && phase === "webcam" && (
-            <div className="webcam-phase-info">
+            <div className={`webcam-phase-info ${isPulsing ? "pulsing" : ""}`.trim()}>
               <div className="level-indicator">Level {level}</div>
               <div className="pose-counter">
                 Pose {poseIndex + 1} / {poseCount}
@@ -303,17 +354,31 @@ export default function StatuesqueGame() {
           {!started && phase === "idle" && (
             <div className="idle-message">
               <h2>Statuesque</h2>
-              <p>Match the poses shown to proceed through all 5 levels.</p>
+              <input
+                type="text"
+                placeholder="Enter your name"
+                value={playerName}
+                onChange={(e) => setPlayerName(e.target.value)}
+                onKeyPress={(e) => {
+                  if (e.key === "Enter" && playerName.trim() && !isExtracting && isWebcamReady) {
+                    setStarted(true);
+                    setLevel(1);
+                    setPoseIndex(0);
+                    setPoseSequence([]);
+                    setPhase("show");
+                  }
+                }}
+                className="player-name-input"
+              />
               <button
                 onClick={() => {
                   setStarted(true);
                   setLevel(1);
                   setPoseIndex(0);
-                  setPoseSequence([]); // Reset sequence for new game
-                  setMatches(new Array(poseCount).fill(false));
+                  setPoseSequence([]);
                   setPhase("show");
                 }}
-                disabled={isExtracting || !isWebcamReady}
+                disabled={isExtracting || !isWebcamReady || !playerName.trim()}
                 className="start-button"
               >
                 {isExtracting ? "LOADING POSES..." : !isWebcamReady ? "LOADING CAMERA..." : "START"}
@@ -340,14 +405,12 @@ export default function StatuesqueGame() {
       {phase === "ending" && (
         <div className="statuesque-overlay">
           <div className="statuesque-modal">
-            <h2>You Finished All 5 Levels!</h2>
-            <p>Accuracy: {accuracy}%</p>
-            <p>
-              Matched {matches.filter(m => m).length} poses out of {totalPoses}.
-            </p>
+            <h2>Great Run!</h2>
+            <p>You reached Level {level}!</p>
+            <p>Highest Similarity: {accuracy}%</p>
             
             <div className="game-results-container">
-              <h3>Level Results:</h3>
+              <h3>Session Results:</h3>
               {selectedPoses.map((pose, idx) => (
                 <div key={idx} className="result-item">
                   <div>Pose {idx + 1}: {pose.filename}</div>
@@ -359,21 +422,44 @@ export default function StatuesqueGame() {
               ))}
             </div>
 
-            <button
-              onClick={() => {
-                setStarted(false);
-                setPhase("idle");
-                setLevel(1);
-                setPoseIndex(0);
-                setPoseSequence([]);
-                setMatches([]);
-                setSelectedPoses([]);
-                setSimilarityResults([]);
-              }}
-              className="restart-button"
-            >
-              Restart
-            </button>
+            <div className="score-submission">
+              <input
+                type="text"
+                placeholder="Enter your name to save score"
+                value={playerName}
+                onChange={(e) => setPlayerName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !isSubmittingScore) {
+                    submitScore();
+                  }
+                }}
+                className="player-name-input"
+              />
+              <div className="modal-button-group">
+                <button
+                  onClick={submitScore}
+                  disabled={isSubmittingScore || !playerName.trim()}
+                  className="submit-score-button"
+                >
+                  {isSubmittingScore ? "SUBMITTING..." : "SUBMIT SCORE"}
+                </button>
+                <button
+                  onClick={() => {
+                    setStarted(false);
+                    setPhase("idle");
+                    setLevel(1);
+                    setPoseIndex(0);
+                    setPoseSequence([]);
+                    setSelectedPoses([]);
+                    setSimilarityResults([]);
+                    setPlayerName("");
+                  }}
+                  className="restart-button"
+                >
+                  Play Again
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -384,6 +470,7 @@ export default function StatuesqueGame() {
           <div className="statuesque-modal">
             <h2>Game Over!</h2>
             <p>You failed to match all poses in Level {level}.</p>
+            <p>Highest Similarity: {accuracy}%</p>
             
             <div className="game-results-container">
               <h3>Level {level} Results:</h3>
@@ -398,21 +485,44 @@ export default function StatuesqueGame() {
               ))}
             </div>
 
-            <button
-              onClick={() => {
-                setStarted(false);
-                setPhase("idle");
-                setLevel(1);
-                setPoseIndex(0);
-                setPoseSequence([]);
-                setMatches([]);
-                setSelectedPoses([]);
-                setSimilarityResults([]);
-              }}
-              className="try-again-button"
-            >
-              Try Again
-            </button>
+            <div className="score-submission">
+              <input
+                type="text"
+                placeholder="Enter your name to save score"
+                value={playerName}
+                onChange={(e) => setPlayerName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !isSubmittingScore) {
+                    submitScore();
+                  }
+                }}
+                className="player-name-input"
+              />
+              <div className="modal-button-group">
+                <button
+                  onClick={submitScore}
+                  disabled={isSubmittingScore || !playerName.trim()}
+                  className="submit-score-button"
+                >
+                  {isSubmittingScore ? "SUBMITTING..." : "SUBMIT SCORE"}
+                </button>
+                <button
+                  onClick={() => {
+                    setStarted(false);
+                    setPhase("idle");
+                    setLevel(1);
+                    setPoseIndex(0);
+                    setPoseSequence([]);
+                    setSelectedPoses([]);
+                    setSimilarityResults([]);
+                    setPlayerName("");
+                  }}
+                  className="restart-button"
+                >
+                  Play Again
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

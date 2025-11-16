@@ -1,35 +1,44 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 
 type Score = {
   id: number;
   name: string;
   accuracy: number;
+  highest_level: number;
   created_at: string;
 };
 
+const loadScores = async (sortBy: "accuracy" | "highest_level", setScores: Function) => {
+  const { data, error } = await supabase
+    .from("scores")
+    .select("*")
+    .order(sortBy, { ascending: false })
+    .order("created_at", { ascending: true })
+    .limit(10);
+
+  console.log(data)
+
+  if (error) {
+    console.error("Error loading scores:", error.message);
+    return;
+  }
+
+  setScores(data as Score[]);
+}
+
 export function Leaderboard() {
   const [scores, setScores] = useState<Score[]>([]);
+  const [sortBy, setSortBy] = useState<"highest_level" | "accuracy">("highest_level")
 
   useEffect(() => {
-    async function loadScores() {
-      const { data, error } = await supabase
-        .from("scores")
-        .select("*")
-        .order("accuracy", { ascending: false })
-        .order("created_at", { ascending: true })
-        .limit(10);
+    loadScores(sortBy, setScores)
+  }, [])
 
-      if (error) {
-        console.error("Error loading scores:", error.message);
-        return;
-      }
-
-      setScores(data as Score[]);
-    }
-
-    loadScores();
-  }, []);
+  const switchSort = () => {
+    setSortBy(sortBy == "highest_level" ? "accuracy" : "highest_level");
+    loadScores(sortBy, setScores);
+  }
 
   if (!scores.length) {
     return <p className="meta">No scores yet. Be the first to play!</p>;
@@ -37,11 +46,14 @@ export function Leaderboard() {
 
   return (
     <div className="leaderboard">
-      <h3>Leaderboard</h3>
+      <h3>LEADERBOARD</h3>
+      <button 
+        onClick={switchSort}
+        className="switch-sort-button">Sort by {sortBy == "highest_level" ? "Highest Similarity" : "Highest Level Reached"} instead</button>
       <ol>
         {scores.map((s, i) => (
           <li key={s.id}>
-            {i + 1}. <strong>{s.name}</strong> — {s.accuracy}%
+            <strong>{s.name}</strong> -- {sortBy == "accuracy" ? `${s.accuracy.toString()}% Highest Similarity` : `Level ${s.highest_level.toString()}`}
           </li>
         ))}
       </ol>
