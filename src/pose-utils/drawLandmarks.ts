@@ -135,7 +135,6 @@ export async function drawPoseImageWithLandmarks(
 export function drawNormalizedLandmarks(
   canvas: HTMLCanvasElement,
   landmarks: Landmark[],
-  backgroundColor?: string,
   config?: DrawLandmarksConfig
 ): void {
   const ctx = canvas.getContext("2d");

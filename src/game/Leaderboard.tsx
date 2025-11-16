@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 
 type Score = {
@@ -51,7 +51,7 @@ export function Leaderboard() {
         onClick={switchSort}
         className="switch-sort-button">Sort by {sortBy == "highest_level" ? "Highest Similarity" : "Highest Level Reached"} instead</button>
       <ol>
-        {scores.map((s, i) => (
+        {scores.map((s) => (
           <li key={s.id}>
             <strong>{s.name}</strong> -- {sortBy == "accuracy" ? `${s.accuracy.toString()}% Highest Similarity` : `Level ${s.highest_level.toString()}`}
           </li>
