@@ -98,18 +98,34 @@ export const WebcamCapture = forwardRef<WebcamCaptureHandle, WebcamCaptureProps>
             "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm"
           );
 
-          poseLandmarkerRef.current = await PoseLandmarker.createFromOptions(vision, {
-            baseOptions: {
-              modelAssetPath: `https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task`,
-              delegate: "GPU"
-            },
-            runningMode: runningModeRef.current,
-            numPoses: 1
-          });
+          try {
+            // Try GPU first
+            poseLandmarkerRef.current = await PoseLandmarker.createFromOptions(vision, {
+              baseOptions: {
+                modelAssetPath: `https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task`,
+                delegate: "GPU"
+              },
+              runningMode: runningModeRef.current,
+              numPoses: 1
+            });
+            console.log("PoseLandmarker model loaded with GPU delegate");
+          } catch (gpuError) {
+            // Fallback to CPU on mobile or if GPU fails
+            console.warn("GPU delegate failed, falling back to CPU:", gpuError);
+            poseLandmarkerRef.current = await PoseLandmarker.createFromOptions(vision, {
+              baseOptions: {
+                modelAssetPath: `https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task`,
+                delegate: "CPU"
+              },
+              runningMode: runningModeRef.current,
+              numPoses: 1
+            });
+            console.log("PoseLandmarker model loaded with CPU delegate");
+          }
           
           // Mark model as ready
           modelReadyRef.current = true;
-          console.log("PoseLandmarker model loaded and ready");
+          console.log("PoseLandmarker model ready");
         } catch (error) {
           console.error("Failed to initialize PoseLandmarker:", error);
           modelReadyRef.current = false;
@@ -200,7 +216,17 @@ export const WebcamCapture = forwardRef<WebcamCaptureHandle, WebcamCaptureProps>
       }
 
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        // Use optimized constraints for better mobile performance
+        const constraints: MediaStreamConstraints = {
+          video: {
+            width: { ideal: 640 },
+            height: { ideal: 480 },
+            facingMode: "user"
+          },
+          audio: false
+        };
+        
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
         if (!videoRef.current) return;
 
         videoRef.current.srcObject = stream;
@@ -211,8 +237,11 @@ export const WebcamCapture = forwardRef<WebcamCaptureHandle, WebcamCaptureProps>
           videoRef.current.removeEventListener("loadeddata", predictWebcam);
         } catch {}
 
+        // Wait for video metadata before starting predictions
+        videoRef.current.addEventListener("loadedmetadata", predictWebcam, { once: true });
         videoRef.current.addEventListener("loadeddata", predictWebcam);
         await videoRef.current.play();
+        console.log("Webcam started successfully");
       } catch (error) {
         console.error("Failed to start webcam:", error);
         throw error;
